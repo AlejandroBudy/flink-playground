@@ -4,7 +4,7 @@ import generators.gaming._
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.functions.AggregateFunction
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction}
+import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
@@ -93,6 +93,29 @@ object WindowFunctions {
     counter.print()
     env.execute()
   }
+
+  /*
+  keyed streams and window functions
+   */
+// elements will be assigned to a mini-stream for its own key
+  val streamByType: KeyedStream[ServerEvent, String] = eventStream.keyBy(e => e.getClass.getSimpleName)
+
+  // for every key we'll have a separate window
+  val threeSecondsTumblingWindow = streamByType.window(TumblingEventTimeWindows.of(Time.seconds(3)))
+
+  class CountInWindow extends WindowFunction[ServerEvent, String, String, TimeWindow] {
+
+    override def apply(key: String, window: TimeWindow, input: Iterable[ServerEvent], out: Collector[String]): Unit =
+      out.collect(s"$key: $window, ${input.size}")
+  }
+
+  def demoCountByTypeByWindow (): Unit = {
+   val finalStream = threeSecondsTumblingWindow.apply(new CountInWindow)
+    finalStream.print()
+    env.execute()
+
+  }
+
   def main(args: Array[String]): Unit =
-    demoAggregate()
+    demoCountByTypeByWindow()
 }
