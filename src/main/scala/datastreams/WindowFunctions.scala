@@ -243,6 +243,26 @@ object WindowFunctions {
     env.execute()
   }
 
+  /*
+   * Exercise: what was the time window (continuous 2s) when we had THE MOST registration events?
+   * - what kind of window functions should we use? ALL WINDOW FUNCTION
+   * - what kind of windows should we use? SLIDING WINDOWS
+   */
+
+  def countingExercise() = {
+    val counter = new AllWindowFunction[ServerEvent, (TimeWindow, Long), TimeWindow] {
+      override def apply(window: TimeWindow, input: Iterable[ServerEvent], out: Collector[(TimeWindow, Long)]): Unit =
+        out.collect((window, input.size))
+    }
+    val bestWindow: (TimeWindow, Long) = eventStream
+      .filter(_.isInstanceOf[PlayerRegistered])
+      .windowAll(SlidingEventTimeWindows.of(Time.seconds(2), Time.seconds(1)))
+      .apply(counter)      // DataSteam[(TimeWindow, Long)]
+      .executeAndCollect() // List[(TimeWindow, Long)]
+      .maxBy(_._2)         // max by the number of registrations
+    println(s"Best window: ${bestWindow._1} with ${bestWindow._2} registrations")
+  }
+
   def main(args: Array[String]): Unit =
-    demoGlobalWindow()
+    countingExercise()
 }
