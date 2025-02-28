@@ -45,3 +45,8 @@ build/
 .bsp/
 
 output
+
+.bloop/
+.metals/
+project/.bloop/
+project/project/
